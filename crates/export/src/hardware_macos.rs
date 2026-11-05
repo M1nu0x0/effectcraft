@@ -16,6 +16,10 @@ use crate::{ExportError, Result};
 /// which this crate's tests pin.
 static ENABLED: AtomicBool = AtomicBool::new(false);
 
+/// The session's hard data-rate limit, as a multiple of the target. High enough not to pull the
+/// average down: measured output at 6x is within 10% of no limit at all.
+const RATE_CEILING: u32 = 6;
+
 pub(crate) fn enable() {
     ENABLED.store(true, Ordering::Relaxed);
 }
@@ -74,6 +78,9 @@ fn config(format: OutputFormat, w: u32, h: u32, rate: FrameRate, output: &Output
     let timescale = u32::try_from(rate.num).ok().filter(|n| *n > 0).ok_or("invalid frame rate")?;
     let frame_duration = u32::try_from(rate.den).ok().filter(|n| *n > 0).ok_or("invalid frame rate")?;
     let kbps = output.bitrate_kbps.max(100);
+    // VtRate::Vbr always sets DataRateLimits. Apple's header warns the average undershoots when its
+    // target is too close to that hard limit: at 1.5x and 3x, 30 Mbps came out as 6.8 Mbps.
+    let max_kbps = kbps.saturating_mul(RATE_CEILING);
     Ok(VtConfig {
         width: w,
         height: h,
@@ -81,7 +88,7 @@ fn config(format: OutputFormat, w: u32, h: u32, rate: FrameRate, output: &Output
         frame_duration,
         keyframe_interval: output.keyint(rate.as_f64()),
         profile,
-        rate: VtRate::Vbr { target_kbps: kbps, max_kbps: kbps.saturating_mul(3) / 2 },
+        rate: VtRate::Vbr { target_kbps: kbps, max_kbps },
     })
 }
 
@@ -191,6 +198,17 @@ mod tests {
         assert!(config(OutputFormat::H264, 320, 180, RATE, &om, Codes { primaries: 9, transfer: 1, matrix: 1 }).is_err());
         assert!(config(OutputFormat::H264, 320, 180, FrameRate { num: 0, den: 1 }, &om, BT709).is_err());
         assert!(open(OutputFormat::ProRes, 320, 180, RATE, &om, BT709).is_none());
+    }
+
+    #[test]
+    fn the_hard_limit_stays_far_from_the_target() {
+        let om = OutputModule { bitrate_kbps: 45_000, ..OutputModule::default() };
+        let Ok(VtConfig { rate: VtRate::Vbr { target_kbps, max_kbps }, .. }) = config(OutputFormat::H264, 320, 180, RATE, &om, BT709) else {
+            panic!("expected a VBR session");
+        };
+        assert_eq!(target_kbps, 45_000);
+        // 3x still starved the average; 6x did not
+        assert!(max_kbps >= target_kbps * 6, "{max_kbps} is too close to {target_kbps}");
     }
 
     #[test]

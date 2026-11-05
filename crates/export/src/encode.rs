@@ -79,12 +79,12 @@ pub(crate) enum Yuv420 {
 }
 
 impl Yuv420 {
-    fn from_rgba(rgba: &[u8], w: usize, h: usize) -> Yuv420 {
+    pub(crate) fn from_rgba(rgba: &[u8], w: usize, h: usize) -> Yuv420 {
         let (mut y, mut u, mut v) = (vec![], vec![], vec![]);
         rgba_to_yuv420(rgba, w, h, &mut y, &mut u, &mut v);
         Yuv420::Planes { y, u, v }
     }
-    fn slices(&self, w: usize, h: usize) -> (&[u8], &[u8], &[u8]) {
+    pub(crate) fn slices(&self, w: usize, h: usize) -> (&[u8], &[u8], &[u8]) {
         match self {
             Yuv420::Planes { y, u, v } => (y, u, v),
             Yuv420::Packed(p) => {
@@ -343,11 +343,16 @@ pub(crate) async fn movie(job: &Cx<'_>, comp: &Comp, w: u32, h: u32, st: &mut St
         c => c,
     };
     let codes = output_codes(&job.project.settings, channels);
-    let mut venc: Box<dyn VideoEncoder> = match fmt {
-        OutputFormat::H264 => Box::new(H264::new(w, h, rate, job.output.bitrate_kbps, codes)?),
-        OutputFormat::Hevc => Box::new(crate::hevc_av1::Hevc::new(w, h, rate, job.output, codes)?),
-        OutputFormat::Av1 => Box::new(crate::hevc_av1::Av1::new(w, h, rate, job.output, codes)?),
-        OutputFormat::Uncompressed => Box::new(crate::uncompressed::Raw::new(w, h, channels == Channels::Rgba)?),
+    #[cfg(target_os = "macos")]
+    let hardware = crate::hardware_macos::for_job(fmt, w, h, rate, job.output, codes);
+    #[cfg(not(target_os = "macos"))]
+    let hardware: Option<Box<dyn VideoEncoder>> = None;
+    let mut venc: Box<dyn VideoEncoder> = match (hardware, fmt) {
+        (Some(hardware), _) => hardware,
+        (_, OutputFormat::H264) => Box::new(H264::new(w, h, rate, job.output.bitrate_kbps, codes)?),
+        (_, OutputFormat::Hevc) => Box::new(crate::hevc_av1::Hevc::new(w, h, rate, job.output, codes)?),
+        (_, OutputFormat::Av1) => Box::new(crate::hevc_av1::Av1::new(w, h, rate, job.output, codes)?),
+        (_, OutputFormat::Uncompressed) => Box::new(crate::uncompressed::Raw::new(w, h, channels == Channels::Rgba)?),
         _ => Box::new(ProRes::new(w, h, job.output.prores_profile, if channels == Channels::Alpha { Channels::Rgb } else { channels }, prores_colr(codes))),
     };
     let brand = if matches!(fmt, OutputFormat::ProRes | OutputFormat::Uncompressed) { Brand::Mov } else { Brand::Mp4 };

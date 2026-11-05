@@ -30,6 +30,9 @@ web-time = { workspace = true }
 thiserror = { workspace = true }
 log = { workspace = true }
 
+[target.'cfg(target_os = "macos")'.dependencies]
+filmcraft-platform = { workspace = true }
+
 [dev-dependencies]
 effectcraft-media = { workspace = true }
 effectcraft-effects = { workspace = true }

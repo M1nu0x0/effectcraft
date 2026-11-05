@@ -88,6 +88,8 @@ filmcraft-media = { git = "https://github.com/storytold/filmcraft", rev = "09aaf
 filmcraft-frame = { git = "https://github.com/storytold/filmcraft", rev = "09aaf9bf15d510eda1c413c0ccabb1d7e08b41c5" }
 filmcraft-color = { git = "https://github.com/storytold/filmcraft", rev = "09aaf9bf15d510eda1c413c0ccabb1d7e08b41c5" }
 filmcraft-time = { git = "https://github.com/storytold/filmcraft", rev = "09aaf9bf15d510eda1c413c0ccabb1d7e08b41c5" }
+# Fork only: VideoToolbox decode (crates/media) and encode (crates/export). Keep at the same rev as the rest.
+filmcraft-platform = { git = "https://github.com/storytold/filmcraft", rev = "09aaf9bf15d510eda1c413c0ccabb1d7e08b41c5" }
 # encoders + muxer (crates/export)
 filmcraft-h264enc = { git = "https://github.com/storytold/filmcraft", rev = "09aaf9bf15d510eda1c413c0ccabb1d7e08b41c5" }
 filmcraft-prores = { git = "https://github.com/storytold/filmcraft", rev = "09aaf9bf15d510eda1c413c0ccabb1d7e08b41c5" }

@@ -86,6 +86,8 @@ impl Exporter for FileExporter {
 
 /// A new session with media, import, expressions, scripting and export enabled.
 pub fn session() -> Session {
+    effectcraft_media::register_hardware_decoders();
+    effectcraft_export::enable_hardware_encoding();
     let mut s = Session {
         // The desktop app, the CLI and the MCP server share installed Roto Brush models.
         models_dir: config_dir().map(|d| d.join("models")),

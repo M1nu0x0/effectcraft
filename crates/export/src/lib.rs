@@ -34,6 +34,8 @@
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
 mod encode;
+#[cfg(target_os = "macos")]
+mod hardware_macos;
 mod hevc_av1;
 mod out;
 mod pipeline;
@@ -141,6 +143,13 @@ pub struct Report {
     pub log: Option<String>,
     /// Files that went to an overflow folder.
     pub overflow: Vec<String>,
+}
+
+/// Fork only (`videotoolbox` branch): export H.264 and HEVC through VideoToolbox from now on, in this
+/// process; what it declines stays on the software encoders.
+pub fn enable_hardware_encoding() {
+    #[cfg(target_os = "macos")]
+    hardware_macos::enable();
 }
 
 /// Formats this build can write (all of them; kept as the hook for optional encoders).

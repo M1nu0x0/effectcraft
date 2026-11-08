@@ -1,6 +1,23 @@
 # `videotoolbox` 포크 브랜치
 
-업스트림 릴리즈에 VideoToolbox 하드웨어 가속을 얹은 개인 사용 포크입니다. 공식 릴리즈에 하드웨어 가속이 들어올 때까지 씁니다. 릴리즈 머지, 설치, 실험 절차는 ArtCraft 워크스페이스의 `AGENTS.md`에 있습니다.
+업스트림 릴리즈에 하드웨어 가속(macOS는 VideoToolbox, Windows는 NVENC와 Media Foundation)을 얹은 개인 사용 포크입니다. 공식 릴리즈에 하드웨어 가속이 들어올 때까지 씁니다. 릴리즈 머지, 설치, 실험 절차는 ArtCraft 워크스페이스의 `AGENTS.md`에 있습니다.
+
+## Windows
+
+2026-11-08에 같은 브랜치에 넣었습니다. 이 Mac에서 `cargo check --target x86_64-pc-windows-msvc`까지만 확인했고, Windows에서 빌드하거나 실행한 적은 없습니다.
+
+| 구간 | 코드 | 받는 작업 |
+| - | - | - |
+| 인코딩 | `crates/export/src/hardware_windows.rs` → `filmcraft_platform::nvenc` | NVIDIA GPU와 드라이버가 있을 때 H.264 High, HEVC Main(8비트, BT.709, 비트레이트 모드) |
+| 디코딩 | `crates/media/src/lib.rs`의 `register_hardware_decoders` → `filmcraft_platform::register()` | Media Foundation(D3D11/DXVA)이 받는 스트림 |
+
+- 소프트웨어로 넘기는 작업은 HEVC Main 10, 품질 모드, BT.709가 아닌 출력 색공간, 홀수 크기, NVENC가 세션을 열지 못한 경우입니다. `NVENC declined`가 `warn` 로그로 남습니다.
+- B-프레임은 쓰지 않습니다. pts와 dts가 같아 편집 목록이 필요 없습니다.
+- 상한 비트레이트는 목표의 1.5배입니다. 소프트웨어 H.264(`H264::new`)와 FilmCraft NVENC 기본값이 같은 값입니다. macOS의 6배(`RATE_CEILING`)는 VideoToolbox 동작 때문이라 가져오지 않았습니다. 실제 비트레이트는 재 보지 않았습니다.
+- HEVC 레벨을 지정하면 NVENC에 그대로 넘기고, H.264는 소프트웨어 인코더처럼 무시합니다.
+- 드라이버의 `nvEncodeAPI64.dll`(NVENC API 12.1)만 씁니다. CUDA toolkit이나 SDK는 설치하지 않아도 됩니다.
+- `register()`는 Windows에서 시작할 때 HEVC 확인용 NVENC 세션을 별도 스레드로 한 번 엽니다(약 0.5초). EC 내보내기는 그 결과를 쓰지 않습니다.
+- Main 10과 품질 모드는 FilmCraft를 고치지 않아도 됩니다. `Nvenc::encode_10`이 있어 이 레포에서 10비트 4:2:0을 만들어 넘기면 Main 10이 되고, 품질 모드는 `Config`에 없어 FilmCraft 수정이 필요합니다.
 
 ## FilmCraft 수정이 필요한 때
 
@@ -41,4 +58,4 @@
 
 ## 현재 상태
 
-2026-11-06 기준 `M1nu0x0/filmcraft`는 없습니다. 이 브랜치는 수정하지 않은 `storytold/filmcraft`의 `09aaf9bf`를 씁니다.
+2026-11-08 기준 `M1nu0x0/filmcraft`는 없습니다. 이 브랜치는 수정하지 않은 `storytold/filmcraft`의 `d5ead4ba`(`v0.22.0`)를 씁니다.

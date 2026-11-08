@@ -30,7 +30,7 @@ web-time = { workspace = true }
 thiserror = { workspace = true }
 log = { workspace = true }
 
-[target.'cfg(target_os = "macos")'.dependencies]
+[target.'cfg(any(target_os = "macos", target_os = "windows"))'.dependencies]
 filmcraft-platform = { workspace = true }
 
 [dev-dependencies]

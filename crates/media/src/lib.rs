@@ -34,11 +34,11 @@ pub use filmcraft_codecs::{GopStats, gop_stats};
 pub use pool::{DEFAULT_BUDGET, MediaPool, PoolStats};
 pub use probe::{DEFAULT_SEQUENCE_RATE, probe, probe_bytes, probe_model};
 
-/// Fork only (`videotoolbox` branch): put VideoToolbox in front of the software decoders, for the
-/// H.264 and HEVC streams it takes (repeated calls are harmless). A stream it declines, or a decoder
-/// that fails mid-stream, goes on in software.
+/// Fork only (`videotoolbox` branch): put VideoToolbox (macOS) or Media Foundation (Windows) in front
+/// of the software decoders, for the streams it takes (repeated calls are harmless). A stream it
+/// declines, or a decoder that fails mid-stream, goes on in software.
 pub fn register_hardware_decoders() {
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
     let _ = filmcraft_platform::register();
 }
 

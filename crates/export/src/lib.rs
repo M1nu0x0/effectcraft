@@ -37,6 +37,8 @@ mod encode;
 pub mod exr_out;
 #[cfg(target_os = "macos")]
 mod hardware_macos;
+#[cfg(target_os = "windows")]
+mod hardware_windows;
 mod hevc_av1;
 mod out;
 mod pipeline;
@@ -146,11 +148,13 @@ pub struct Report {
     pub overflow: Vec<String>,
 }
 
-/// Fork only (`videotoolbox` branch): export H.264 and HEVC through VideoToolbox from now on, in this
-/// process; what it declines stays on the software encoders.
+/// Fork only (`videotoolbox` branch): export H.264 and HEVC through VideoToolbox (macOS) or NVENC
+/// (Windows) from now on, in this process; what it declines stays on the software encoders.
 pub fn enable_hardware_encoding() {
     #[cfg(target_os = "macos")]
     hardware_macos::enable();
+    #[cfg(target_os = "windows")]
+    hardware_windows::enable();
 }
 
 /// Formats this build can write (all of them; kept as the hook for optional encoders).

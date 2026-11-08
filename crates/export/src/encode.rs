@@ -345,7 +345,9 @@ pub(crate) async fn movie(job: &Cx<'_>, comp: &Comp, w: u32, h: u32, st: &mut St
     let codes = output_codes(&job.project.settings, channels);
     #[cfg(target_os = "macos")]
     let hardware = crate::hardware_macos::for_job(fmt, w, h, rate, job.output, codes);
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
+    let hardware = crate::hardware_windows::for_job(fmt, w, h, rate, job.output, codes);
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     let hardware: Option<Box<dyn VideoEncoder>> = None;
     let mut venc: Box<dyn VideoEncoder> = match (hardware, fmt) {
         (Some(hardware), _) => hardware,

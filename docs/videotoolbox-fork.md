@@ -4,7 +4,7 @@
 
 ## Windows
 
-2026-11-08에 같은 브랜치에 넣었습니다. 이 Mac에서 `cargo check --target x86_64-pc-windows-msvc`까지만 확인했고, Windows에서 빌드하거나 실행한 적은 없습니다.
+2026-11-08에 같은 브랜치에 넣었습니다. Mac에서는 `cargo check --target x86_64-pc-windows-msvc`까지 확인했고, 같은 날 Windows에서 빌드하고 실행했습니다. 코드 수정은 필요 없었습니다. 결과는 [Windows에서 확인한 것](#windows에서-확인한-것)에 있습니다.
 
 | 구간 | 코드 | 받는 작업 |
 | - | - | - |
@@ -13,11 +13,33 @@
 
 - 소프트웨어로 넘기는 작업은 HEVC Main 10, 품질 모드, BT.709가 아닌 출력 색공간, 홀수 크기, NVENC가 세션을 열지 못한 경우입니다. `NVENC declined`가 `warn` 로그로 남습니다.
 - B-프레임은 쓰지 않습니다. pts와 dts가 같아 편집 목록이 필요 없습니다.
-- 상한 비트레이트는 목표의 1.5배입니다. 소프트웨어 H.264(`H264::new`)와 FilmCraft NVENC 기본값이 같은 값입니다. macOS의 6배(`RATE_CEILING`)는 VideoToolbox 동작 때문이라 가져오지 않았습니다. 실제 비트레이트는 재 보지 않았습니다.
+- 상한 비트레이트는 목표의 1.5배입니다. 소프트웨어 H.264(`H264::new`)와 FilmCraft NVENC 기본값이 같은 값입니다. macOS의 6배(`RATE_CEILING`)는 VideoToolbox 동작 때문이라 가져오지 않았습니다. NVENC는 목표보다 낮은 비트레이트를 쓰지만 화질 차이는 작습니다. 수치는 아래에 있습니다.
 - HEVC 레벨을 지정하면 NVENC에 그대로 넘기고, H.264는 소프트웨어 인코더처럼 무시합니다.
 - 드라이버의 `nvEncodeAPI64.dll`(NVENC API 12.1)만 씁니다. CUDA toolkit이나 SDK는 설치하지 않아도 됩니다.
 - `register()`는 Windows에서 시작할 때 HEVC 확인용 NVENC 세션을 별도 스레드로 한 번 엽니다(약 0.5초). EC 내보내기는 그 결과를 쓰지 않습니다.
 - Main 10과 품질 모드는 FilmCraft를 고치지 않아도 됩니다. `Nvenc::encode_10`이 있어 이 레포에서 10비트 4:2:0을 만들어 넘기면 Main 10이 되고, 품질 모드는 `Config`에 없어 FilmCraft 수정이 필요합니다.
+
+### Windows에서 확인한 것
+
+2026-11-08, Windows 11, NVIDIA GeForce RTX 5060(드라이버 617.42), rustc 1.99.1에서 확인했습니다.
+
+- 빌드에는 rustc 1.95 이상이 필요합니다. 워크스페이스의 `rust-version`이 1.95입니다. 1.93이 깔린 머신은 `rustup update stable`로 올렸습니다.
+- `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo build -p effectcraft -p effectcraft-cli`가 통과합니다.
+- `cargo test -p effectcraft-export -p effectcraft-media -p effectcraft-host -p effectcraft-automation -p effectcraft-cli -p effectcraft`에서는 `automation_roots_confine_the_footage_a_project_names` 하나만 실패합니다. 업스트림 `v0.22.0`(`42e3c6a6`)도 Windows에서 같은 줄에서 실패하므로 이 포크와는 관계없습니다.
+- `hardware_session_emits_every_frame_with_parameter_sets`는 H.264와 HEVC 모두 NVENC 세션을 실제로 열고 통과했습니다(RGBA 입력). NVENC가 없는 머신에서는 이 테스트가 인코딩 없이 통과합니다. 그래서 통과했다는 사실만으로는 하드웨어 경로를 확인한 것이 아닙니다.
+- `effectcraft-cli --demo render --format h264|hevc --end 3`이 `NVENC hardware encoder` 로그를 남깁니다. 출력은 H.264 High, HEVC Main, 1920×1080, 29.97fps, 90프레임, BT.709 태그이고, ffmpeg로 끝까지 디코딩해도 오류가 없습니다.
+- 같은 3초를 PNG로 렌더한 것과 비교했습니다(목표 10 Mbps).
+
+  | 출력 | 비트레이트 | PSNR | 시간 |
+  | - | - | - | - |
+  | NVENC H.264 | 5.2 Mbps | 43.38 dB | 1.8초 |
+  | 소프트웨어 H.264 | 9.1 Mbps | 43.60 dB | 2.4초 |
+  | NVENC HEVC | 4.3 Mbps | 43.37 dB | 1.7초 |
+  | 소프트웨어 HEVC | 10.0 Mbps | 43.59 dB | 53.5초 |
+
+- Media Foundation은 H.264를 하드웨어로 디코딩합니다. NVENC 출력과 B-프레임이 있는 x264 출력 모두, 순차 재생과 앞뒤 탐색을 섞은 94프레임 전부 소프트웨어 디코더와 비트 단위로 같았습니다.
+- HEVC는 HEVC Video Extensions가 없으면 `no HEVC decoder MFT (the HEVC Video Extensions are not installed)` 로그를 남기고 소프트웨어로 디코딩합니다. 확장을 설치한 상태로는 시험하지 않았습니다.
+- 데스크톱 앱(`effectcraft --control 9877`)으로 mp4 가져오기, 프레임 렌더, H.264 내보내기, 종료까지 했습니다. 로그에 `Microsoft H264 Video Decoder MFT on NVIDIA GeForce RTX 5060`과 `NVENC hardware encoder`가 찍혔습니다.
 
 ## FilmCraft 수정이 필요한 때
 

@@ -39,3 +39,7 @@ log = { workspace = true }
 
 [target.'cfg(any(target_os = "macos", target_os = "windows"))'.dependencies]
 filmcraft-platform = { workspace = true }
+
+[dev-dependencies]
+# (tests render comps that read layers through effects; already a dependency of effectcraft-render)
+effectcraft-effects = { workspace = true }

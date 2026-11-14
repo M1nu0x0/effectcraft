@@ -34,6 +34,7 @@ log = { workspace = true }
 filmcraft-platform = { workspace = true }
 
 [dev-dependencies]
+tempfile = { workspace = true }
 effectcraft-media = { workspace = true }
 effectcraft-effects = { workspace = true }
 effectcraft-color = { workspace = true }
